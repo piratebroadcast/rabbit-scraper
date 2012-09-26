@@ -17,43 +17,35 @@ end
 # Scrape category from TaskRabbit site
 def scrape_category(url)
     begin
-        puts url
         doc = Nokogiri::HTML(open(url))
         category = doc.css("div.fabric h2").first.content
     rescue Exception => ex
-        puts ex.message
+        puts ex
         category = " "
     end
 end
 
 # Scrape data for first HTML element found by css query
-def scrape_css(doc, css)
+def scrape_css(elem, css)
     begin
-        element = doc.css(css).first.content
+        value = elem.css(css).first.content
     rescue Exception => ex
-        puts ex.message
-        element = ""
+        puts ex
+        value = ""
     end
 end
 
-# Scrape task details from TaskRabbit /t/ pages
-def scrape_task(url)
+# Scrape task details from Nokogiri element
+def scrape_task(elem)
     # Initialize
     task = Task.new
 
     # Scrape task data
     begin
-        doc = Nokogiri::HTML(open(url))
-        task.title = scrape_css(doc, "h1.taskTitle")
-
-        # Scrape time
-        task.time = scrape_css(doc, "span.time")
-        if !task.time.empty?
-            task.time = Time.parse(task.time)
-        end
+        task.title = scrape_css(elem, "h3.eventTitle a")
 
         # Scrape price
-        value = scrape_css(doc, "div.taskPriceEstimate div.value")
+        value = scrape_css(elem, "span.taskPriceEstimate span.value")
         if !value.empty?
             value = value.tr!("$", "").split(" - ") # Remove $ chars, Split by '-'
             task.min_price = value.first.to_i
@@ -67,19 +59,37 @@ def scrape_task(url)
     return task
 end
 
+# Scrapes tasks from a TaskRabbit /all/ tasks page
+def scrape_tasks(url)
+    tasks = []
+    doc = Nokogiri::HTML(open(url))
+    doc.css("li.task_event").each do |node|
+        task = scrape_task(node)
+
+        if task.nil?
+            next
+        end
+
+        if !task.empty?
+            tasks << task
+        end
+    end
+
+    return tasks
+end
+
 # Writes an array of tasks to a spreadsheet
 def write_tasks_to_spreadsheet(tasks, output_filename)
     # Initialize
     book = Spreadsheet::Workbook.new
     sheet = book.create_worksheet
-    sheet.row(0).concat %w{Title Category Time Minimum Maximum Average}
+    sheet.row(0).concat %w{Title Category Minimum Maximum Average}
 
     puts tasks
 
     tasks.each_with_index do |task, i|
         sheet.row(i + 1).push(task.title)
         sheet.row(i + 1).push(task.category)
-        sheet.row(i + 1).push(task.time)
         sheet.row(i + 1).push(task.min_price)
         sheet.row(i + 1).push(task.max_price)
         sheet.row(i + 1).push(task.avg_price)
@@ -111,17 +121,13 @@ File.open(ARGV[0]).each_line do |url|
             # Find category name
             category = scrape_category(url)
 
-            # Find all task links with /t/ in the href
-            anemone.on_pages_like(%r{/t/}) do |page| 
-                task = scrape_task(page.url)
-                task.category = category
+            # Find all task links with /all/ in the href
+            anemone.on_pages_like(%r{/all/}) do |page|
+                tasks = scrape_tasks(page.url)
 
-                # Debug
-                puts task
-                if task == nil
-                    next
-                elsif !task.empty?
-                    tasks << task
+                # Set task category
+                tasks.each do |task|
+                    task.category = category
                 end
             end
         end
