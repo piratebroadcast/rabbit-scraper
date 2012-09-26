@@ -8,7 +8,7 @@ require './task'
 def usage
     puts "Usage: ./scraper sites_filename [output_filename] \n" \
     "- sites_filename \t Name of text file with list of sites \n" \
-    "- output_filename \t Name of the output .xls file \n" \
+    "- output_filename \t Name of the output .xls file.  Default is YY-mm-dd.xls \n" \
     "Scrapes TaskRabbit websites for tasks (title, time, " \
     "minimum price for task, maximum price for task, average price" \
     "for task) and outputs the data as an excel spreadsheet."
