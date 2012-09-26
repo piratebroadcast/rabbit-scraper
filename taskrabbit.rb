@@ -123,12 +123,14 @@ File.open(ARGV[0]).each_line do |url|
 
             # Find all task links with /all/ in the href
             anemone.on_pages_like(%r{/all/}) do |page|
-                tasks = scrape_tasks(page.url)
+                new_tasks = scrape_tasks(page.url)
 
                 # Set task category
-                tasks.each do |task|
+                new_tasks.each do |task|
                     task.category = category
                 end
+
+                tasks = new_tasks + tasks
             end
         end
     rescue Exception => ex
