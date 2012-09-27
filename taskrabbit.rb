@@ -5,6 +5,9 @@ require 'time'
 require 'spreadsheet'
 require './task'
 
+# Constants
+URL_PATTERN = Regexp.union %r(all), %r(page)
+
 def usage
     puts "Usage: ./scraper sites_filename [output_filename] \n" \
     "- sites_filename \t Name of text file with list of sites \n" \
@@ -120,10 +123,11 @@ File.open(ARGV[0]).each_line do |url|
     begin
         Anemone.crawl(url) do |anemone|
             # Find all task links with /all/ in the href
-            i = 0
-            anemone.on_pages_like(%r{/all/}) do |page|
-                i = i + 1
+            anemone.focus_crawl do |page|
+                page.links.keep_if { |link| link.to_s.match(URL_PATTERN) }
+            end
 
+            anemone.on_every_page do |page|
                 # Check if URL has been visited
                 next unless visited_urls[page.url].nil?
                 visited_urls[page.url] = true
