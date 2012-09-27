@@ -18,6 +18,8 @@ def usage
 end
 
 def default_output_filename
+  # TS: this is fine, but note that in our rails project, never use
+  # Time.now - http://www.betaful.com/2012/09/date-time-and-activesupporttimewithzone/
   Time.now.strftime("%Y-%m-%d") + ".xls"
 end
 
@@ -31,6 +33,7 @@ def scrape_category(url)
     puts ex
   end
 
+  # TS: ruby automatically returns the last line of your block / method
   return ""
 end
 
@@ -78,6 +81,8 @@ def scrape_tasks(url)
   doc.css("li.task_event").each do |node|
     task = scrape_task(node)
 
+    # TS: you have two conditions - task.nil? and task.empty?
+    # in Rails, nil.empty? returns true
     next if task.nil?
     tasks << task unless task.empty?
   end
