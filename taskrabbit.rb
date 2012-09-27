@@ -18,21 +18,25 @@ end
 def scrape_category(url)
     begin
         doc = Nokogiri::HTML(open(url))
-        category = doc.css("div.fabric h2").first.content
+        category = doc.css("div.fabric h2").first
+        return category.content unless category.nil?
     rescue Exception => ex
         puts ex
-        category = " "
     end
+
+    return ""
 end
 
 # Scrape data for first HTML element found by css query
 def scrape_css(elem, css)
     begin
-        value = elem.css(css).first.content
+        value = elem.css(css).first
+        return value.content unless value.nil?
     rescue Exception => ex
         puts ex
-        value = ""
     end
+
+    return ""
 end
 
 # Scrape task details from Nokogiri element
@@ -46,7 +50,8 @@ def scrape_task(elem)
 
         # Scrape price
         value = scrape_css(elem, "span.taskPriceEstimate span.value")
-        if !value.empty?
+        return "" if value.nil?
+        unless value.empty?
             value = value.tr!("$", "").split(" - ") # Remove $ chars, Split by '-'
             task.min_price = value.first.to_i
             task.max_price = value.last.to_i
@@ -66,13 +71,8 @@ def scrape_tasks(url)
     doc.css("li.task_event").each do |node|
         task = scrape_task(node)
 
-        if task.nil?
-            next
-        end
-
-        if !task.empty?
-            tasks << task
-        end
+        next if task.nil?
+        tasks << task unless task.empty?
     end
 
     return tasks
@@ -115,6 +115,7 @@ end
 
 # Read links from file parameter
 tasks = []
+visited_urls = {}
 File.open(ARGV[0]).each_line do |url|
     begin
         Anemone.crawl(url) do |anemone|
@@ -122,15 +123,17 @@ File.open(ARGV[0]).each_line do |url|
             i = 0
             anemone.on_pages_like(%r{/all/}) do |page|
                 i = i + 1
-                #puts "Pages viewed: #{i}"
+
+                # Check if URL has been visited
+                next unless visited_urls[page.url].nil?
+                visited_urls[page.url] = true
+
                 puts "Scraping #{page.url}"
                 new_tasks = scrape_tasks(page.url)
 
                 # Set task category
                 category = scrape_category(url)
-                new_tasks.each do |task|
-                    task.category = category
-                end
+                new_tasks.each { |task| task.category = category }
 
                 tasks = new_tasks + tasks
             end
