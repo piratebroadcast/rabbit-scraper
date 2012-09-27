@@ -114,34 +114,37 @@ if ARGV.length != 1
 end
 
 # Read links from file parameter
+tasks = []
 File.open(ARGV[0]).each_line do |url|
-    tasks = []
     begin
         Anemone.crawl(url) do |anemone|
-            # Find category name
-            category = scrape_category(url)
-
             # Find all task links with /all/ in the href
+            i = 0
             anemone.on_pages_like(%r{/all/}) do |page|
+                i = i + 1
+                #puts "Pages viewed: #{i}"
+                puts "Scraping #{page.url}"
                 new_tasks = scrape_tasks(page.url)
 
                 # Set task category
+                category = scrape_category(url)
                 new_tasks.each do |task|
                     task.category = category
                 end
 
                 tasks = new_tasks + tasks
             end
+            puts "Finished scraping #{tasks.length} tasks"
         end
     rescue Exception => ex
-        puts ex
+        puts "[ERROR] #{ex}"
     end
-
-    # Write spreadsheet
-    output_filename = Time.now.strftime("%Y-%m-%d") + ".xls"
-    if ARGV.length >= 2
-        output_filename = ARGV[1]
-    end
-    write_tasks_to_spreadsheet(tasks, output_filename)
-    puts "Finished writing #{tasks.length} tasks to #{output_filename}"
 end
+
+# Write spreadsheet
+output_filename = Time.now.strftime("%Y-%m-%d") + ".xls"
+if ARGV.length >= 2
+    output_filename = ARGV[1]
+end
+write_tasks_to_spreadsheet(tasks, output_filename)
+puts "Finished writing #{tasks.length} tasks to #{output_filename}"
